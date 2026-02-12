@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluidGeo | H3-Turbo Acceleration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --primary: #00d4ff;
+            --secondary: #0055ff;
+            --accent: #00ff88;
+            --text: #ffffff;
+        }
+
+        body {
+            background-color: var(--bg);
+            /* UPLOAD IMAGE TO WIX MEDIA AND REPLACE THIS URL */
+            background-image: linear-gradient(rgba(11, 14, 20, 0.7), rgba(11, 14, 20, 0.7)), url('fluidgeo_spatial_join_bg.png');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 1.5rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hero {
+            padding: 100px 5%;
+            text-align: center;
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 50px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .stat-number {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: var(--accent);
+            display: block;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: #000;
+            padding: 18px 35px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+        }
+
+        .btn:hover { background: var(--accent); box-shadow: 0 0 30px rgba(0, 255, 136, 0.4); }
+
+        code {
+            display: inline-block;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid var(--secondary);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-weight:900; font-size: 1.8rem; letter-spacing: -1px;">FLUIDGEO</div>
+    <a href="mailto:craig@fluidgeollc.com" class="btn">Get Trial Key</a>
+</header>
+
+<section class="hero">
+    <h1>H3-Turbo: 1,186x Faster Spatial Joins</h1>
+    <p style="font-size: 1.4rem; opacity: 0.8; margin-bottom: 40px;">
+        Zero-copy GPU acceleration for the Blackwell era. <br>
+        Move from nightly batch jobs to sub-second real-time intelligence.
+    </p>
+    <code>pip install h3-turbo</code>
+
+    <div class="stats-container">
+        <div class="stat-box">
+            <span class="stat-number">1,186x</span>
+            <p>1B Ping Spatial Join Performance</p>
+        </div>
+        <div class="stat-box">
+            <span class="stat-number">1,538x</span>
+            <p>50M H3 Raw Compute Throughput</p>
+        </div>
+    </div>
+</section>
+
+<footer style="padding: 100px 5%; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); opacity: 0.4;">
+    &copy; 2026 FluidGeo LLC.
+</footer>
+
+</body>
+</html>
