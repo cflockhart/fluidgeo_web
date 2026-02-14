@@ -6,11 +6,16 @@ Accelerate your H3 geospatial indexing and spatial joins using SYCL-based GPU ac
 
 ## Installation
 
+Download the wheel file from the `dist` directory. Ensure you select the `manylinux` wheel for standard Linux distributions (Ubuntu, Debian, etc.). The `dbr` wheels are specifically for Databricks.
+
+CUDA Toolkit >= 12 needs to be installed on an Ubuntu system 22.04+.
+
+```bash
+# Create a virtual environment (Recommended)
+python3 -m venv .h3_turbo
+source .h3_turbo/bin/activate
 
 # Install the package
-Download the wheel file from the `dist` directory. CUDA Toolkit >= 12 needs to be installed on an Ubuntu systems 22.04+ with Python version required indicated in the file name: cp312 == python 3.12. It's recommended to create a virtual environment e.g. `python3 -m venv .h3_turbo` first and use that.
-e.g.
-```
 pip install h3_turbo-0.0.1-cp312-cp312-manylinux_2_39_x86_64.whl
 ```
 
