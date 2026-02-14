@@ -2,7 +2,7 @@
 
 * > 1000x speedup on an RTX PRO 6000!*
 ## Installation instructions
-Only tested on Ubuntu so far. Please send us the error if installation or tests fail on other distros.
+Only tested on Ubuntu so far. Please send us the error if installation or tests fail on other distros. AMD, Windows and Mac support planned.
 
 - Clone the repo
 - Requires CUDA toolkit to be installed: `sudo apt update && sudo apt install nvidia-cuda-toolkit`
