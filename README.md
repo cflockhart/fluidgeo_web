@@ -1,6 +1,19 @@
 ## Benchmark files and example usage for h3_turbo
 
->1000x speedup on an RTX PRO 6000!
+* > 1000x speedup on an RTX PRO 6000!*
+## Installation instructions
+Only tested on Ubuntu so far. Please send us the error if installation or tests fail on other distros.
+
+- Clone the repo
+- Requires CUDA toolkit to be installed: `sudo apt update && sudo apt install nvidia-cuda-toolkit`
+
+- Pick the "manylinux" wheel file from the `dist` directory (`dbr` files are specifically for Databricks runtime configurations), according to your Python version:
+ - Ubuntu 24.04: h3_turbo-0.0.1-cp312-cp312-manylinux_2_39_x86_64.whl
+ - Ubuntu 22.04: h3_turbo-0.0.1-cp312-cp312-manylinux_2_39_x86_64.whl
+
+Run `pip install >>wheel file<<`
+Only tested on Ubuntu 24.04 and 22.04 with NVIDIA sm_89 and up architecture (4000 series, 5000 series, L4, RTX 6000 etc). You can find the compute_cap with `nvidia-smi --query-gpu=compute_cap`. If it's 8.9 or higher, it should work.
+
 ## RTX PRO 6000 Blackwell server edition (AWS G7e Instances)
 ``` 
 ================================================== test session starts ==================================================
