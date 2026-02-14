@@ -6,16 +6,18 @@ Accelerate your H3 geospatial indexing and spatial joins using SYCL-based GPU ac
 
 ## Installation
 
-```bash
-# Install the package
-sudo ./h3_turbo_installer.sh
-```
 
+# Install the package
+Download the wheel file from the `dist` directory. It CUDA Toolkit >= 12 needs to be installed on an Ubuntu system 22.04+ with Python version required indicated in the file name: cp312 == python 3.12.
+e.g.
+```
+pip install h3_turbo-0.0.1-cp312-cp312-manylinux_2_39_x86_64.whl
+```
 ## Licensing
 
 H3 Turbo requires a valid license key to operate. You must set the `H3_TURBO_LICENSE` environment variable or set it programmatically before calling API functions.
 
-> Get a 1 month license key here.
+> Get a 1 month (or however long you need to evaluate it) by emailing info@fluidgeo.com
 
 ```python
 import os
