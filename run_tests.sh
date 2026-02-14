@@ -46,5 +46,28 @@ if [ -n "$DEBUG" ]; then
     echo "--- AdaptiveCpp Debug Logging Enabled (Level 3) ---"
 fi
 
+# Sync to web directory
+TARGET_DIR="../fluidgeo_web"
+if [ -d "$TARGET_DIR" ]; then
+    echo "Syncing run_tests.sh and tests/ to $TARGET_DIR..."
+    rsync -av run_tests.sh "$TARGET_DIR/"
+    rsync -av tests/ "$TARGET_DIR/tests/"
+else
+    echo "Warning: Target directory $TARGET_DIR not found. Skipping sync."
+fi
+
+# Check RAM
+TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+# 20GB = 20 * 1024 * 1024 = 20971520 KB
+THRESHOLD_KB=20971520
+
+SKIP_ARGS=""
+if [ "$TOTAL_MEM_KB" -lt "$THRESHOLD_KB" ]; then
+    echo "Total RAM (${TOTAL_MEM_KB} kB) is less than 20GB. Skipping tests/test_spatial_bench_q11_1B.py"
+    SKIP_ARGS="--ignore=tests/test_spatial_bench_q11_1B.py"
+else
+    echo "Total RAM (${TOTAL_MEM_KB} kB) >= 20GB. Running all tests."
+fi
+
 echo "Running tests with PYTHONPATH=$PYTHONPATH"
-python3 -m pytest -s -v tests/
+python3 -m pytest -s -v tests/ $SKIP_ARGS
