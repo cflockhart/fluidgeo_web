@@ -44,7 +44,21 @@ fi
 if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v ldconfig >/dev/null 2>&1; then
     if ! ldconfig -p 2>/dev/null | grep -q "libomp"; then
         echo "WARNING: libomp (OpenMP) library not found. AdaptiveCpp CPU backend may fail."
-        echo "  - On Debian/Ubuntu: apt-get install libomp-dev"
+        
+        # Try to install if root
+        if [ "$(id -u)" -eq 0 ] && command -v apt-get >/dev/null 2>&1; then
+            echo "Attempting to install libomp-dev..."
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq && apt-get install -y -qq libomp-dev || echo "WARNING: Install failed."
+        fi
+
+        # If still missing (or install failed), try to mask CPU backend
+        if ! ldconfig -p 2>/dev/null | grep -q "libomp" && command -v nvidia-smi >/dev/null 2>&1; then
+            echo "Info: libomp still missing. Setting ACPP_VISIBILITY_MASK=cuda to bypass CPU backend."
+            export ACPP_VISIBILITY_MASK="cuda"
+        elif ! ldconfig -p 2>/dev/null | grep -q "libomp"; then
+            echo "  - On Debian/Ubuntu: apt-get install libomp-dev"
+        fi
     fi
 fi
 
