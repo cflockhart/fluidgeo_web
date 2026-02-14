@@ -82,10 +82,6 @@ def test_raw_compute_benchmark():
     # Call the kernel
     # batch_transform modifies data in-place (or returns a modified copy depending on binding)
     # My python binding 'py_batch_transform' copies input, processes, and returns new array.
-    # This includes data transfer time!
-    # The Scala benchmark 'batchTransformDirect' used a DirectByteBuffer (zero-copy if configured right, or pinned).
-    # Here we are using standard numpy array, so there is copy overhead.
-    # However, for 50M items (400MB), transfer is ~0.03s (PCIe 4.0 16GB/s) to ~0.1s.
     # Processing 50M items * 50 ops * 5 cycles = massive.
     
     gpu_results = h3_turbo.batch_transform(data_gpu, res_target)
@@ -101,19 +97,7 @@ def test_raw_compute_benchmark():
     
     # 1. Cell To Parent
     # h3.cell_to_parent is not vectorized in h3-py < 4.  h3-py 4 might map.
-    # But usually list comp is slow.
-    # For fair comparison against "Scala Loop", we want something fast.
-    # Scala loop is scalar but JITed.
-    # Numpy vectorization is the closest Python equivalent to "optimized code".
-    
-    # We'll use a simple approach: simple loop for parent (likely slow part), vectorized for scramble.
-    # Actually, h3.cell_to_parent might be the bottleneck.
-    # Let's try to mimic the bitwise logic if possible?
-    # No, that's complex (ico logic).
-    # We will use the library function and accept the overhead, OR
-    # use a smaller N if CPU is too slow?
     # Python list comp for 50M will take ~10-20 seconds.
-    # That's fine.
     
     # Vectorized scramble is fast.
     
