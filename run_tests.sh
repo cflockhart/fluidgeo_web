@@ -46,16 +46,6 @@ if [ -n "$DEBUG" ]; then
     echo "--- AdaptiveCpp Debug Logging Enabled (Level 3) ---"
 fi
 
-# Sync to web directory
-TARGET_DIR="../fluidgeo_web"
-if [ -d "$TARGET_DIR" ]; then
-    echo "Syncing run_tests.sh and tests/ to $TARGET_DIR..."
-    rsync -av run_tests.sh "$TARGET_DIR/"
-    rsync -av tests/ "$TARGET_DIR/tests/"
-else
-    echo "Warning: Target directory $TARGET_DIR not found. Skipping sync."
-fi
-
 # Check RAM
 TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
 # 20GB = 20 * 1024 * 1024 = 20971520 KB
