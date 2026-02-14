@@ -5,6 +5,12 @@ import h3
 import time
 import os
 
+def get_available_ram_gb():
+    try:
+        return (os.sysconf('SC_AVPHYS_PAGES') * os.sysconf('SC_PAGE_SIZE')) / (1024**3)
+    except (ValueError, AttributeError):
+        return 0
+
 def numpy_apply_weight(h3_array):
     """
     Vectorized implementation of the 50-loop scramble using NumPy.
@@ -28,6 +34,7 @@ def numpy_apply_weight(h3_array):
         
     return p
 
+@pytest.mark.skipif(get_available_ram_gb() < 20, reason="Available RAM is less than 20GB")
 def test_q11_spatial_join():
     """
     SpatialBench Query 11: Spatial Join (Point-in-Polygon).
