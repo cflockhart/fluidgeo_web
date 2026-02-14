@@ -40,24 +40,19 @@ if ! python3 -c "import h3" &> /dev/null; then
     python3 -m pip install -r requirements.txt
 fi
 
+# Check for libomp on Linux (common dependency for AdaptiveCpp CPU backend)
+if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v ldconfig >/dev/null 2>&1; then
+    if ! ldconfig -p 2>/dev/null | grep -q "libomp"; then
+        echo "WARNING: libomp (OpenMP) library not found. AdaptiveCpp CPU backend may fail."
+        echo "  - On Debian/Ubuntu: apt-get install libomp-dev"
+    fi
+fi
+
 # Enable AdaptiveCpp runtime logging if DEBUG is set
 if [ -n "$DEBUG" ]; then
     export ACPP_DEBUG_LEVEL=3
     echo "--- AdaptiveCpp Debug Logging Enabled (Level 3) ---"
 fi
 
-# Check RAM
-TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-# 20GB = 20 * 1024 * 1024 = 20971520 KB
-THRESHOLD_KB=20971520
-
-SKIP_ARGS=""
-if [ "$TOTAL_MEM_KB" -lt "$THRESHOLD_KB" ]; then
-    echo "Total RAM (${TOTAL_MEM_KB} kB) is less than 20GB. Skipping tests/test_spatial_bench_q11_1B.py"
-    SKIP_ARGS="--ignore=tests/test_spatial_bench_q11_1B.py"
-else
-    echo "Total RAM (${TOTAL_MEM_KB} kB) >= 20GB. Running all tests."
-fi
-
 echo "Running tests with PYTHONPATH=$PYTHONPATH"
-python3 -m pytest -s -v tests/ $SKIP_ARGS
+python3 -m pytest -s -v tests/
