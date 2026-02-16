@@ -1,0 +1,23 @@
+bundle:
+  name: h3-turbo-benchmark
+
+resources:
+  jobs:
+    benchmark_job:
+      name: "H3 Turbo Benchmark (DBR 17.3)"
+      tasks:
+        - task_key: benchmark_task
+          notebook_task:
+            notebook_path: ./databricks_benchmark.py
+          libraries:
+            - whl: h3_turbo-0.0.1-cp312-cp312-dbr_17.3_x86_64.whl
+      job_clusters:
+        - job_cluster_key: benchmark_cluster
+          new_cluster:
+            spark_version: "17.3.x-gpu-ml-scala2.12"
+            node_type_id: "g4dn.xlarge"
+            num_workers: 1
+            spark_env_vars:
+              H3_TURBO_LICENSE: "dummy_value"
+            spark_conf:
+              spark.databricks.delta.preview.enabled: "true"
