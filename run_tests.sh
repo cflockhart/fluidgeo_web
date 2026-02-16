@@ -50,16 +50,35 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v ldconfig >/dev/null 2>&1; then
             echo "Attempting to install libomp-dev..."
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq && apt-get install -y -qq libomp-dev || echo "WARNING: Install failed."
+            # Update linker cache
+            ldconfig
         fi
 
-        # If still missing (or install failed), try to mask CPU backend
-        if ! ldconfig -p 2>/dev/null | grep -q "libomp" && command -v nvidia-smi >/dev/null 2>&1; then
-            echo "Info: libomp still missing. Setting ACPP_VISIBILITY_MASK=cuda to bypass CPU backend."
-            export ACPP_VISIBILITY_MASK="cuda"
-        elif ! ldconfig -p 2>/dev/null | grep -q "libomp"; then
-            echo "  - On Debian/Ubuntu: apt-get install libomp-dev"
+        # If still missing (or install failed), warn user
+        if ! ldconfig -p 2>/dev/null | grep -q "libomp"; then
+             echo "  - On Debian/Ubuntu: apt-get install libomp-dev"
         fi
     fi
+fi
+
+# Find libomp.so to ensure it's visible to AdaptiveCpp
+LIBOMP_PATH=$(find /usr/lib /usr/local/lib -name "libomp.so" -o -name "libomp.so.5" -print -quit 2>/dev/null)
+if [ -n "$LIBOMP_PATH" ]; then
+    echo "Found libomp at: $LIBOMP_PATH"
+    LIBOMP_DIR=$(dirname "$LIBOMP_PATH")
+    if [[ ":$LD_LIBRARY_PATH:" != *":$LIBOMP_DIR:"* ]]; then
+        export LD_LIBRARY_PATH="$LIBOMP_DIR:$LD_LIBRARY_PATH"
+        echo "Added $LIBOMP_DIR to LD_LIBRARY_PATH"
+    fi
+else
+    echo "WARNING: libomp.so not found. AdaptiveCpp CPU backend may fail."
+fi
+
+# Debug: Check dependencies of the installed extension
+H3_TURBO_LOC=$(python3 -c "import h3_turbo; print(h3_turbo.__file__)" 2>/dev/null || true)
+if [ -n "$H3_TURBO_LOC" ]; then
+    echo "Checking dependencies of: $H3_TURBO_LOC"
+    ldd "$H3_TURBO_LOC" | grep -i "omp\|cuda\|sycl\|acpp" || true
 fi
 
 # Enable AdaptiveCpp runtime logging if DEBUG is set
