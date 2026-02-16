@@ -82,10 +82,8 @@ if [ -n "$H3_TURBO_LOC" ]; then
 fi
 
 # Enable AdaptiveCpp runtime logging if DEBUG is set (or unconditionally for diagnosis)
-export ACPP_DEBUG_LEVEL=3
 export ACPP_DEBUG_LEVEL=1
 export OMP_NUM_THREADS=1
-echo "--- AdaptiveCpp Debug Logging Enabled (Level 3) ---"
 echo "--- AdaptiveCpp Debug Logging Enabled (Level 1) ---"
 echo "--- GPU Status ---"
 nvidia-smi || echo "WARNING: nvidia-smi failed. GPU may not be accessible."
