@@ -90,7 +90,7 @@ def test_q11_spatial_join():
         # Estimate 20 bytes per ping (8 input + 1 output + overhead)
         gpu_batch_size = int((available_ram * 0.05) / 20)
         # Clamp batch size to reasonable limits (1M to 100M)
-        gpu_batch_size = max(1_000_000, min(1_000_000_000, gpu_batch_size))
+        gpu_batch_size = max(1_000_000, min(1_100_000_000, gpu_batch_size))
         
         print(f"Dynamic GPU Batch Size: {gpu_batch_size:,} (Available RAM: {available_ram / 1024**3:.2f} GB)")
         
