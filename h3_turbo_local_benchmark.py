@@ -124,7 +124,7 @@ print("\n--- Benchmark 1: Raw Compute (Transform) ---")
 print("Running GPU...")
 h3_turbo.warmup()
 start_gpu = time.time()
-gpu_raw_results = h3_turbo.batch_transform(pings_np, RES_RAW)
+gpu_raw_results = h3_turbo.batch_transform(pings_np.copy(), RES_RAW)
 raw_gpu_time = time.time() - start_gpu
 print(f"GPU Time: {raw_gpu_time:.4f} s")
 
@@ -132,7 +132,7 @@ print(f"GPU Time: {raw_gpu_time:.4f} s")
 print("Running CPU (Vectorized NumPy)...")
 start_cpu = time.time()
 # 1. Cell to Parent (List comprehension is fastest in h3-py)
-parents_list = [h3.str_to_int(h3.cell_to_parent(h3.int_to_str(h), RES_RAW)) for h in pings_np]
+parents_list = [h3.str_to_int(h3.cell_to_parent(h3.int_to_str(int(h)), RES_RAW)) for h in pings_np]
 parents_arr = np.array(parents_list, dtype=np.uint64)
 # 2. Scramble
 cpu_raw_results = numpy_apply_weight(parents_arr)
@@ -155,12 +155,12 @@ print(f"GPU Time: {join_gpu_time:.4f} s (Matches: {matches_gpu})")
 # CPU
 print("Running CPU (Set Lookup)...")
 # Pre-calculate zone set (fair comparison)
-zone_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(z), RES_JOIN)) for z in zones_np], dtype=np.uint64))
+zone_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(int(z)), RES_JOIN)) for z in zones_np], dtype=np.uint64))
 zone_set = set(zone_parents)
 
 start_cpu = time.time()
 # 1. Pings to Parent
-cpu_parents = np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(p), RES_JOIN)) for p in pings_np], dtype=np.uint64)
+cpu_parents = np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(int(p)), RES_JOIN)) for p in pings_np], dtype=np.uint64)
 # 2. Scramble
 cpu_parents = numpy_apply_weight(cpu_parents)
 # 3. Lookup
