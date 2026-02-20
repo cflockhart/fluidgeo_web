@@ -68,11 +68,11 @@ def test_q11_spatial_join():
 
     # CPU Run
     print("Running CPU Spatial Join (Baseline)...")
-    zone_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(z), res_target)) for z in zones], dtype=np.uint64))
+    zone_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(int(z)), res_target)) for z in zones], dtype=np.uint64))
     zone_set = set(zone_parents)
 
     start_cpu = time.time()
-    cpu_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(p), res_target)) for p in pings], dtype=np.uint64))
+    cpu_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(int(p)), res_target)) for p in pings], dtype=np.uint64))
     cpu_results = np.array([1 if p in zone_set else 0 for p in cpu_parents], dtype=np.uint8)
     cpu_duration = time.time() - start_cpu
     print(f"CPU Time: {cpu_duration:.4f} s")

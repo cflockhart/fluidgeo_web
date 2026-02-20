@@ -120,7 +120,7 @@ def test_raw_compute_benchmark():
     print("  Step 1: Cell to Parent (using h3-py)...")
     # We use numpy.vectorize or list comp
     # list comp is usually faster than np.vectorize for scalar functions
-    parents_list = [h3.str_to_int(h3.cell_to_parent(h3.int_to_str(h), res_target)) for h in data_cpu]
+    parents_list = [h3.str_to_int(h3.cell_to_parent(h3.int_to_str(int(h)), res_target)) for h in data_cpu]
     parents_arr = np.array(parents_list, dtype=np.uint64)
     
     print("  Step 2: Scramble (using NumPy)...")

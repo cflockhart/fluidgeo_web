@@ -19,6 +19,7 @@ import os
 import time
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import h3
 from pyspark.sql.functions import col, pandas_udf, lit, expr
 from pyspark.sql.types import LongType
@@ -135,6 +136,7 @@ start_spark = time.time()
  .write.format("noop").mode("overwrite").save())
 
 spark_duration = time.time() - start_spark
+raw_spark_time = spark_duration
 print(f"Spark SQL Time: {spark_duration:.4f} s")
 
 # --- H3 Turbo ---
@@ -144,6 +146,7 @@ h3_turbo.warmup() # Ensure JIT is ready
 start_gpu = time.time()
 gpu_results = h3_turbo.batch_transform(pings_np, RES_RAW)
 gpu_duration = time.time() - start_gpu
+raw_gpu_time = gpu_duration
 
 print(f"H3 Turbo (GPU) Time: {gpu_duration:.4f} s")
 print(f"Speedup: {spark_duration / gpu_duration:.2f}x")
@@ -169,6 +172,7 @@ zones_parents = zones_df.withColumn("parent", expr(f"h3_toparent(cell, {RES_JOIN
 matches_spark = pings_parents.join(zones_parents, "parent", "inner").count()
 
 spark_duration = time.time() - start_spark
+join_spark_time = spark_duration
 print(f"Spark SQL Time: {spark_duration:.4f} s")
 print(f"Matches Found: {matches_spark}")
 
@@ -181,6 +185,7 @@ gpu_results = h3_turbo.spatial_join(pings_np, zones_np, RES_JOIN)
 matches_gpu = np.sum(gpu_results)
 
 gpu_duration = time.time() - start_gpu
+join_gpu_time = gpu_duration
 print(f"H3 Turbo (GPU) Time: {gpu_duration:.4f} s")
 print(f"Matches Found: {matches_gpu}")
 
@@ -189,3 +194,66 @@ print(f"Speedup: {spark_duration / gpu_duration:.2f}x")
 # Verification
 assert matches_spark == matches_gpu, f"Mismatch! Spark: {matches_spark}, GPU: {matches_gpu}"
 print("✅ Results Match")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 4. Visualization
+# MAGIC Visualizing the performance gap and the spatial data distribution.
+
+# COMMAND ----------
+
+# 1. Performance Comparison (Log Scale)
+tasks = ['Raw Transform', 'Spatial Join']
+cpu_times = [raw_spark_time, join_spark_time]
+gpu_times = [raw_gpu_time, join_gpu_time]
+
+x = np.arange(len(tasks))
+width = 0.35
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+# Plot 1: Execution Time
+rects1 = ax1.bar(x - width/2, cpu_times, width, label='Spark (CPU)', color='#FF9999')
+rects2 = ax1.bar(x + width/2, gpu_times, width, label='H3 Turbo (GPU)', color='#66B2FF')
+
+ax1.set_ylabel('Time (seconds) - Log Scale')
+ax1.set_title('Execution Time (Lower is Better)')
+ax1.set_xticks(x)
+ax1.set_xticklabels(tasks)
+ax1.legend()
+ax1.set_yscale('log') # Log scale because GPU is likely orders of magnitude faster
+ax1.grid(True, which="both", ls="-", alpha=0.2)
+
+# Plot 2: Speedup Factor
+speedups = [c / g for c, g in zip(cpu_times, gpu_times)]
+bars = ax2.bar(tasks, speedups, color='green', alpha=0.7)
+ax2.set_ylabel('Speedup Factor (X times faster)')
+ax2.set_title('GPU Acceleration Factor')
+ax2.bar_label(bars, fmt='%.1fx', padding=3)
+
+plt.tight_layout()
+plt.savefig('benchmark_performance.png')
+plt.show()
+
+# 2. Spatial Distribution Sample
+# Plotting 50M points is impossible, so we sample 10k
+sample_size = 10_000
+print(f"Plotting spatial sample of {sample_size} points...")
+
+pings_sample = np.random.choice(pings_np, sample_size, replace=False)
+zones_sample = np.random.choice(zones_np, sample_size, replace=False)
+
+# Convert H3 to Lat/Lon for plotting
+pings_coords = np.array([h3.h3_to_geo(h3.int_to_str(h)) for h in pings_sample])
+zones_coords = np.array([h3.h3_to_geo(h3.int_to_str(h)) for h in zones_sample])
+
+plt.figure(figsize=(10, 10))
+plt.scatter(pings_coords[:, 1], pings_coords[:, 0], c='blue', alpha=0.1, s=1, label='Pings')
+plt.scatter(zones_coords[:, 1], zones_coords[:, 0], c='red', alpha=0.5, s=5, label='Hot Zones')
+plt.title(f'Spatial Distribution (Sample of {sample_size})')
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
+plt.legend()
+plt.savefig('spatial_distribution.png')
+plt.show()
