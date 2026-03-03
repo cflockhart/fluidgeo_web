@@ -22,6 +22,6 @@ resources:
         - task_key: benchmark_task
           job_cluster_key: benchmark_cluster
           notebook_task:
-            notebook_path: ./databricks_benchmark.ipynb
+            notebook_path: ./databricks_benchmark.py
           libraries:
             - whl: ./h3_turbo-0.0.1-cp312-cp312-manylinux_2_39_x86_64.whl
