@@ -26,8 +26,11 @@ from pyspark.sql.types import LongType
 # Try to import h3_turbo
 try:
     import h3_turbo
+    from spark_h3_turbo import latlng_to_cell_udf, cell_to_parent_udf
     print(f"H3 Turbo Version: {h3_turbo.__file__}")
 except ImportError:
+    latlng_to_cell_udf = None
+    cell_to_parent_udf = None
     print("WARNING: h3_turbo not found. Please install the wheel via 'Compute > Libraries'.")
 
 # COMMAND ----------
@@ -189,3 +192,94 @@ print(f"Speedup: {spark_duration / gpu_duration:.2f}x")
 # Verification
 assert matches_spark == matches_gpu, f"Mismatch! Spark: {matches_spark}, GPU: {matches_gpu}"
 print("✅ Results Match")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 4. Benchmark: LatLng to Cell
+# MAGIC **Logic**: Convert Latitude/Longitude to H3 Cell Index.
+# MAGIC
+# MAGIC *   **Spark**: `h3_longlatash3(lon, lat, res)` (Native C++ implementation in DBR)
+# MAGIC *   **H3 Turbo**: `latlng_to_cell_udf(res)(lat, lon)` (GPU Accelerated Pandas UDF)
+
+# COMMAND ----------
+
+print(f"--- Running Spark SQL Benchmark (LatLng to Cell) ---")
+
+# Generate Lat/Lon Data (Driver)
+print(f"Generating {N_PINGS:,} lat/lon pairs...")
+lats_np = np.random.uniform(-90, 90, N_PINGS).astype(np.float64)
+lngs_np = np.random.uniform(-180, 180, N_PINGS).astype(np.float64)
+
+latlon_df = spark.createDataFrame(pd.DataFrame({"lat": lats_np, "lon": lngs_np}))
+latlon_df.cache().count()
+print("LatLon DataFrame cached.")
+
+start_spark = time.time()
+
+# Spark Execution
+# Note: Spark h3_longlatash3 takes (longitude, latitude, resolution)
+(latlon_df
+ .withColumn("cell", expr(f"h3_longlatash3(lon, lat, {RES_RAW})"))
+ .write.format("noop").mode("overwrite").save())
+ 
+spark_duration = time.time() - start_spark
+print(f"Spark SQL Time: {spark_duration:.4f} s")
+
+# --- H3 Turbo ---
+print(f"--- Running H3 Turbo Benchmark (LatLng to Cell UDF) ---")
+
+if latlng_to_cell_udf:
+    start_gpu = time.time()
+    
+    # H3 Turbo Execution via UDF
+    (latlon_df
+     .withColumn("cell", latlng_to_cell_udf(RES_RAW)(col("lat"), col("lon")))
+     .write.format("noop").mode("overwrite").save())
+     
+    gpu_duration = time.time() - start_gpu
+    print(f"H3 Turbo (GPU) Time: {gpu_duration:.4f} s")
+    print(f"Speedup: {spark_duration / gpu_duration:.2f}x")
+else:
+    print("Skipping H3 Turbo benchmark (UDF not available)")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 5. Benchmark: Cell to Parent
+# MAGIC **Logic**: Find the parent cell at a coarser resolution.
+# MAGIC
+# MAGIC *   **Spark**: `h3_toparent(cell, res)`
+# MAGIC *   **H3 Turbo**: `cell_to_parent_udf(res)(cell)`
+
+# COMMAND ----------
+
+print(f"--- Running Spark SQL Benchmark (Cell to Parent) ---")
+PARENT_RES = 5
+
+start_spark = time.time()
+
+# Spark Execution
+(pings_df
+ .withColumn("parent", expr(f"h3_toparent(cell, {PARENT_RES})"))
+ .write.format("noop").mode("overwrite").save())
+
+spark_duration = time.time() - start_spark
+print(f"Spark SQL Time: {spark_duration:.4f} s")
+
+# --- H3 Turbo ---
+print(f"--- Running H3 Turbo Benchmark (Cell to Parent UDF) ---")
+
+if cell_to_parent_udf:
+    start_gpu = time.time()
+    
+    # H3 Turbo Execution via UDF
+    (pings_df
+     .withColumn("parent", cell_to_parent_udf(PARENT_RES)(col("cell")))
+     .write.format("noop").mode("overwrite").save())
+     
+    gpu_duration = time.time() - start_gpu
+    print(f"H3 Turbo (GPU) Time: {gpu_duration:.4f} s")
+    print(f"Speedup: {spark_duration / gpu_duration:.2f}x")
+else:
+    print("Skipping H3 Turbo benchmark (UDF not available)")
