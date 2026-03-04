@@ -14,7 +14,7 @@ resources:
             node_type_id: "g4dn.xlarge"
             num_workers: 1
             spark_env_vars:
-              H3_TURBO_LICENSE: "LICENSE-craig-20990101-70D4C3B8D0CE5772DA9B410F4589FDFE254EEA3DE15E7FD3F6F1AD4B97D8B12C"
+              H3_TURBO_LICENSE: "LICENSE-databricks_test-20260403-0E9B062988D4E2DA4AB5C44E510893F06594D30F772E826DEED13EC0E390C0C2"
             spark_conf:
               spark.databricks.delta.preview.enabled: "true"
 
