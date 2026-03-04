@@ -10,8 +10,8 @@ resources:
       job_clusters:
         - job_cluster_key: benchmark_cluster
           new_cluster:
-            spark_version: "17.x-gpu-ml-scala2.12"
-            node_type_id: "g4dn.xlarge"
+            spark_version: "17.3.x-gpu-ml-scala2.13"
+            node_type_id: "g6e.4xlarge"
             num_workers: 1
             spark_env_vars:
               H3_TURBO_LICENSE: "LICENSE-databricks_test-20260403-0E9B062988D4E2DA4AB5C44E510893F06594D30F772E826DEED13EC0E390C0C2"
@@ -22,6 +22,6 @@ resources:
         - task_key: benchmark_task
           job_cluster_key: benchmark_cluster
           notebook_task:
-            notebook_path: ./databricks_benchmark.py
+            notebook_path: ./databricks_benchmark.ipynb
           libraries:
             - whl: ./h3_turbo-0.0.1-cp312-cp312-manylinux_2_39_x86_64.whl
