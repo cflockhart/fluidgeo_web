@@ -78,3 +78,38 @@ When choosing a wheel file or Docker image for AWS, refer to the following table
 | `p5` | NVIDIA H100 | Hopper | `sm_90` |
 | `p5e` | NVIDIA H200 | Hopper | `sm_90` |
 | `g7e` | NVIDIA B200 | Blackwell | `sm_100` |
+
+## Docker Prerequisites
+
+To run the Docker images with GPU acceleration enabled (`h3-turbo`), you must ensure your host machine is correctly configured with NVIDIA drivers and Docker support.
+
+Specifically, the following must be installed:
+
+1.  **NVIDIA Drivers**: Ensure you have the NVIDIA GPU drivers installed on your host (compatible with CUDA 12.0+).
+2.  **nvidia-container-toolkit**: This toolkit enables the Docker engine to access the GPU.
+
+### Installation Guide
+
+For the **NVIDIA Container Toolkit**, please follow the official installation guide.
+
+After installing the toolkit, remember to restart the Docker daemon:
+```bash
+sudo systemctl restart docker
+```
+
+You can then verify your setup by running:
+```bash
+docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
+```
+
+## Running Automated Benchmarks via Docker
+
+To run the automated benchmarks using Docker, you can use the provided `docker-compose.benchmark.yml` file. This setup automatically builds the necessary environment and executes `benchmark_runner.py` with GPU support enabled.
+
+Make sure you have your `H3_TURBO_LICENSE` environment variable set, or pass it directly. Run the following command:
+
+```bash
+H3_TURBO_LICENSE=your_license_here docker compose -f docker-compose.benchmark.yml up --build
+```
+
+**Note:** Generated 1-month licenses are available within the Docker images published at [https://hub.docker.com/repositories/cflockhart](https://hub.docker.com/repositories/cflockhart).
