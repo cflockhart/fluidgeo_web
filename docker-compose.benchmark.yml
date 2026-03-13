@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - H3_TURBO_LICENSE=${H3_TURBO_LICENSE}
+    volumes:
+      - .:/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - H3_TURBO_LICENSE=${H3_TURBO_LICENSE}
+      - ACPP_LOG_LEVEL=error
+    command: python3 -u benchmark_runner.py

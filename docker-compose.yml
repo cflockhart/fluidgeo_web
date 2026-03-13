@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - H3_TURBO_LICENSE=${H3_TURBO_LICENSE}
+    ports:
+      - "8888:8888"
+    volumes:
+      # Mount the current directory to the app directory in the container.
+      # This allows for live code changes without rebuilding the image.
+      - .:/app
+    # Enable GPU access for the service
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      # License key is now baked into the image via build args
+      - ACPP_LOG_LEVEL=error
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8888')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
