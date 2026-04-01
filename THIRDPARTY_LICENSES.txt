@@ -1,0 +1,76 @@
+========================================================================
+H3-Turbo (FluidGeo LLC) - Third-Party Open Source Notices
+========================================================================
+
+This software, H3-Turbo, is a proprietary product of FluidGeo LLC. 
+H3-Turbo incorporates and leverages several open-source libraries. 
+FluidGeo LLC acknowledges the following authors and contributors 
+and provides the required license notices below.
+
+------------------------------------------------------------------------
+1. H3 Discrete Global Grid System
+------------------------------------------------------------------------
+Source: https://github.com/uber/h3
+License: Apache License, Version 2.0
+
+Copyright (c) 2016-2022 Uber Technologies, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*TRADEMARK NOTICE*: "H3" is a registered trademark of Uber Technologies, Inc. 
+H3-Turbo is an independent library and is not affiliated with or 
+endorsed by Uber Technologies, Inc.
+
+------------------------------------------------------------------------
+2. NumPy
+------------------------------------------------------------------------
+Source: https://github.com/numpy/numpy
+License: BSD 3-Clause "New" or "Revised" License
+
+Copyright (c) 2005-2023, NumPy Developers.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the NumPy Developers nor the names of any
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+------------------------------------------------------------------------
+3. AdaptiveCpp (formerly hipSYCL)
+------------------------------------------------------------------------
+Source: https://github.com/AdaptiveCpp/AdaptiveCpp
+License: BSD 2-Clause "Simplified" License
+
+Copyright (c) 2018-2024, AdaptiveCpp contributors. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.
