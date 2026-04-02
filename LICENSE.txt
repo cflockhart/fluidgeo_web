@@ -1,0 +1,58 @@
+========================================================================
+H3-Turbo - Commercial Software License Agreement
+Copyright (c) 2026 FluidGeo LLC. All Rights Reserved.
+========================================================================
+
+IMPORTANT: PLEASE READ THIS LICENSE CAREFULLY BEFORE USING THE SOFTWARE.
+BY INSTALLING OR USING H3-TURBO, YOU AGREE TO BE BOUND BY THE TERMS OF 
+THIS AGREEMENT.
+
+1. LICENSE GRANT
+FluidGeo LLC ("Licensor") grants you ("Licensee") a non-exclusive, 
+non-transferable, limited license to use the H3-Turbo binary library 
+and associated documentation solely for internal business operations. 
+This license is granted per [Node/GPU/Site] as specified in your 
+Purchase Order or Service Agreement.
+
+2. RESTRICTIONS
+Licensee shall not:
+    (a) Reverse engineer, decompile, or disassemble the Software.
+    (b) Modify, adapt, or create derivative works based on the Software.
+    (c) Sublicense, rent, lease, or lend the Software to any third party.
+    (d) Distribute the Software as part of a commercial product without 
+        express written consent from FluidGeo LLC.
+    (e) Remove or alter any proprietary notices or labels (e.g., FluidGeo 
+        LLC copyrights or third-party license attributions).
+
+3. INTELLECTUAL PROPERTY
+The Software, including all proprietary GPU kernels, parallel 
+optimization logic, and SYCL/CUDA implementation details, is and shall 
+remain the sole property of FluidGeo LLC. This license is a right to use, 
+not a sale, and does not convey any rights of ownership in the Software.
+
+4. THIRD-PARTY COMPONENTS
+The Software incorporates third-party open-source components (e.g., H3, 
+NumPy, AdaptiveCpp). These components are governed by their respective 
+licenses as detailed in the 'THIRDPARTY_LICENSES.txt' file. Licensee 
+agrees to comply with all such third-party terms.
+
+5. NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. FLUIDGEO 
+LLC DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT 
+LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+PARTICULAR PURPOSE.
+
+6. LIMITATION OF LIABILITY
+IN NO EVENT SHALL FLUIDGEO LLC BE LIABLE FOR ANY INDIRECT, SPECIAL, 
+CONSEQUENTIAL, OR INCIDENTAL DAMAGES ARISING OUT OF THE USE OR INABILITY 
+TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+7. TERMINATION
+This license is effective until terminated. This license will terminate 
+immediately without notice from FluidGeo LLC if you fail to comply with 
+any provision of this Agreement. Upon termination, Licensee must cease 
+all use and destroy all copies of the Software.
+
+========================================================================
+FluidGeo LLC | Los Angeles, CA | info@fluidgeollc.com
+========================================================================
