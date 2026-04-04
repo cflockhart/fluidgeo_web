@@ -1,13 +1,24 @@
-# H3 Turbo
+# H3 SYCL Bridge
+
+## ⚖️ Licensing
+FluidGeo H3-Turbo is offered under a dual-license model:
+* **Academic & Non-Commercial:** Free for research and educational purposes.
+* **Commercial & Enterprise:** A yearly subscription is required for production environments. 
+  * *Features: 1,186x speedup on Blackwell, zero-copy pinned memory, and priority SYCL kernel support.*
+
+For enterprise trial keys and pricing, contact: **info@fluidgeollc.com**
+
+## Installation
+
+H3-Turbo is available on PyPI and comes with pre-compiled "fat" wheels for Linux (CUDA 12.x) supporting NVIDIA Ampere, Ada Lovelace, Hopper, and Blackwell architectures.
+
+```bash
+pip install h3-turbo
+```
 
 ## Python API
 
 H3 Turbo provides drop-in replacements for common H3 functions, optimized for NumPy arrays and GPU acceleration.
-
-## Benchmark files and example usage for h3_turbo
-
-Wheel files containing the Python bindings and benchmarnk notebooks are in the `dist` directory.
-Docker images for Nvidia CUDA compute capability 8.9, 9.0, 10.0  and 12.0 with Jupyter lab are available at `docker.io/cflockhart/h3_turbo_sm_89:latest`, `docker.io/cflockhart/h3_turbo_sm_90:latest` etc.
 
 ```python
 import h3_turbo
@@ -70,7 +81,6 @@ When choosing a wheel file or Docker image for AWS, refer to the following table
 
 | AWS Instance | GPU | Architecture | GPU_ARCH |
 | :--- | :--- | :--- | :--- |
-| `g4dn` | NVIDIA T4 | Turing | `sm_75` |
 | `g5` | NVIDIA A10G | Ampere | `sm_86` |
 | `p4d` | NVIDIA A100 | Ampere | `sm_80` |
 | `g6` | NVIDIA L4 | Ada Lovelace | `sm_89` |
@@ -78,38 +88,3 @@ When choosing a wheel file or Docker image for AWS, refer to the following table
 | `p5` | NVIDIA H100 | Hopper | `sm_90` |
 | `p5e` | NVIDIA H200 | Hopper | `sm_90` |
 | `g7e` | NVIDIA B200 | Blackwell | `sm_100` |
-
-## Docker Prerequisites
-
-To run the Docker images with GPU acceleration enabled (`h3-turbo`), you must ensure your host machine is correctly configured with NVIDIA drivers and Docker support.
-
-Specifically, the following must be installed:
-
-1.  **NVIDIA Drivers**: Ensure you have the NVIDIA GPU drivers installed on your host (compatible with CUDA 12.0+).
-2.  **nvidia-container-toolkit**: This toolkit enables the Docker engine to access the GPU.
-
-### Installation Guide
-
-For the **NVIDIA Container Toolkit**, please follow the official installation guide.
-
-After installing the toolkit, remember to restart the Docker daemon:
-```bash
-sudo systemctl restart docker
-```
-
-You can then verify your setup by running:
-```bash
-docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
-```
-
-## Running Automated Benchmarks via Docker
-
-To run the automated benchmarks using Docker, you can use the provided `docker-compose.benchmark.yml` file. This setup automatically builds the necessary environment and executes `benchmark_runner.py` with GPU support enabled.
-
-Make sure you have your `H3_TURBO_LICENSE` environment variable set, or pass it directly. Run the following command:
-
-```bash
-H3_TURBO_LICENSE=your_license_here docker compose -f docker-compose.benchmark.yml up --build
-```
-
-**Note:** Generated 1-month licenses are available within the Docker images published at [https://hub.docker.com/repositories/cflockhart](https://hub.docker.com/repositories/cflockhart).
