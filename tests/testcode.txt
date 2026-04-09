@@ -1,0 +1,593 @@
+------- Test file  __init__.py
+------- Test file  conftest.py
+import pytest
+import os
+import sys
+
+# Add project root to path to allow importing license_generator
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Add build directory to path to allow importing h3_turbo if not installed
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../build")))
+
+# Try to import h3_turbo. If it fails, we can't set the license anyway.
+try:
+    import h3_turbo
+except ImportError:
+    h3_turbo = None
+
+# Suppress AdaptiveCpp warnings (like missing OpenCL) unless they are errors
+if "ACPP_LOG_LEVEL" not in os.environ:
+    os.environ["ACPP_LOG_LEVEL"] = "error"
+
+@pytest.fixture(scope="session", autouse=True)
+def auto_configure_license():
+    """
+    Ensures a valid H3 Turbo license is set for the test session.
+    If not present in environment, generates a temporary one.
+    """
+    if "H3_TURBO_LICENSE" not in os.environ:
+        try:
+            import license_generator
+            print("\n[conftest] Auto-generating license key for test session...")
+            # Generate a key valid for a long time
+            key = license_generator.generate_license("pytest_auto", "20991231")
+            os.environ["H3_TURBO_LICENSE"] = key
+        except ImportError:
+            print("\n[conftest] Warning: license_generator.py not found. Tests may fail if license is missing.")
+    
+    if "H3_TURBO_LICENSE" in os.environ and h3_turbo:
+        key = os.environ["H3_TURBO_LICENSE"].strip()
+        h3_turbo.set_license_key(key)------- Test file  test_benchmark.py
+import pytest
+import h3_turbo
+import numpy as np
+import h3
+import time
+from collections import Counter
+import os
+
+def numpy_apply_weight(h3_array):
+    """
+    Vectorized implementation of the 50-loop scramble using NumPy.
+    """
+    p = h3_array.astype(np.uint64)
+    c1 = np.uint64(0xBF58476D1CE4E5B9)
+    c2 = np.uint64(0x94D049BB133111EB)
+    for _ in range(50):
+        p ^= (p >> np.uint64(7))
+        p *= c1
+        p ^= (p >> np.uint64(13))
+        p *= c2
+        p ^= (p >> np.uint64(31))
+    return p
+
+@pytest.fixture(scope="session", autouse=True)
+def warmup_gpu():
+    print("Warming up the JIT...", flush=True)
+    print(f"DEBUG: h3_turbo loaded from {h3_turbo.__file__}", flush=True)
+    # Tiny dummy data to trigger compilation
+    dummy_data = np.array([0x8928308280fffff], dtype=np.uint64)
+    res = 5
+    # Call the kernel to trigger compilation
+    h3_turbo.batch_transform(dummy_data, res)
+    print("🚀 JIT Ready!", flush=True)
+
+def test_heatmap_performance():
+    """
+    Compares the performance of a heatmap generation on CPU vs. GPU.
+    """
+    n = int(os.environ.get("H3_NUM_PINGS", 10_000_000))
+    res_target = 5
+    base_index = 0x8928308280fffff
+    
+    print(f"\nGenerating {n} random H3 indexes...")
+    # Use k_ring to get VALID indices, then sample from them.
+    k = 200
+    # H3 v4 uses strings. Convert int -> str -> grid_disk -> int
+    valid_seeds = [h3.str_to_int(x) for x in h3.grid_disk(h3.int_to_str(base_index), k)]
+    seeds_np = np.array(valid_seeds, dtype=np.uint64)
+    pings = seeds_np[np.random.randint(0, len(seeds_np), size=n)]
+
+    # Create a copy for CPU baseline because GPU kernel modifies in-place
+    pings_cpu = pings.copy()
+
+    # --- PATH A: GPU ACCELERATED ---
+    print("Performing heatmap generation on GPU...")
+    start_gpu = time.time()
+    
+    # The h3_turbo.batch_transform function is expected to perform the cellToParent and scramble
+    gpu_results = h3_turbo.batch_transform(pings, res_target)
+    
+    gpu_duration = time.time() - start_gpu
+    print(f"GPU heatmap took: {gpu_duration:.4f} seconds.")
+    throughput = n / gpu_duration
+    print(f"GPU Throughput: {throughput:,.0f} points/sec")
+
+    # --- PATH B: PURE CPU ---
+    print("\nPerforming heatmap generation on CPU...")
+    start_cpu = time.time()
+
+    # 1. Get parent for each H3 index
+    cpu_parents = np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(h), res_target)) for h in pings_cpu], dtype=np.uint64)
+    
+    # 2. Apply the scramble to each parent
+    cpu_results = numpy_apply_weight(cpu_parents)
+
+    cpu_duration = time.time() - start_cpu
+    print(f"CPU heatmap took: {cpu_duration:.4f} seconds.")
+
+    # --- Verification and ROI ANALYSIS ---
+    print("\n" + "=" * 60)
+    print(f"DOORDASH WORKLOAD: ({n:,} Pings)")
+    print(f"CPU Total Pipeline: {cpu_duration:.4f} seconds")
+    print(f"GPU Total Pipeline: {gpu_duration:.4f} seconds")
+    if gpu_duration > 0:
+        print(f"OVERALL SPEEDUP:    {cpu_duration / gpu_duration:.2f}x")
+    else:
+        print("GPU execution was too fast to measure speedup.")
+    print("=" * 60)
+    
+    # Verify that the results are the same
+    print("\nVerifying results...")
+    # Counter is too slow for 10M items. Use NumPy equality check.
+    assert np.array_equal(gpu_results, cpu_results), "GPU and CPU results do not match!"
+    print("✅ GPU and CPU results match.")
+
+    print("\n---")
+    print("Benchmark complete. To run the tests, use the command: pytest")
+    print("---\n")
+
+if __name__ == "__main__":
+    if "H3_TURBO_LICENSE" in os.environ:
+        h3_turbo.set_license_key(os.environ["H3_TURBO_LICENSE"].strip())
+    # Manually trigger warmup since pytest fixtures don't run in script mode
+    print("\n☕ Stan is warming up the JIT...", flush=True)
+    dummy_data = np.array([0x8928308280fffff], dtype=np.uint64)
+    h3_turbo.batch_transform(dummy_data, 5)
+    print("🚀 JIT Ready!", flush=True)
+    test_heatmap_performance()
+------- Test file  test_raw_benchmark.py
+import pytest
+import h3_turbo
+import numpy as np
+import h3
+import time
+import os
+
+def numpy_apply_weight(h3_array):
+    """
+    Vectorized implementation of the 50-loop scramble using NumPy.
+    Matches the logic in RawPerformanceBenchmark.scala.
+    """
+    p = h3_array.astype(np.uint64)
+    # Constants
+    c1 = np.uint64(0xBF58476D1CE4E5B9)
+    c2 = np.uint64(0x94D049BB133111EB)
+    
+    for _ in range(50):
+        # p ^= (p >> 7)
+        p ^= (p >> np.uint64(7))
+        # p *= c1
+        p *= c1
+        # p ^= (p >> 13)
+        p ^= (p >> np.uint64(13))
+        # p *= c2
+        p *= c2
+        # p ^= (p >> 31)
+        p ^= (p >> np.uint64(31))
+        
+    return p
+
+def test_raw_compute_benchmark():
+    """
+    Raw Compute Benchmark: GPU vs CPU (Pure Transformation)
+    """
+    # 50 million elements, as in the Scala benchmark
+    n = int(os.environ.get("H3_NUM_PINGS", 50_000_000))
+    res_target = 9
+    base_index = 0x8928308280fffff
+    
+    print(f"\n" + "=" * 80)
+    print(f"RAW COMPUTE BENCHMARK: TRANSFORMING {n:,} H3 INDEXES")
+    print("This test measures the ideal GPU workload (pure arithmetic) without overhead.")
+    print("-" * 80)
+
+# --- Data Setup ---
+    print("Generating data...")
+    
+    
+    # k=100 gives ~30,000 valid indices. Fast and safe.
+    k = 100 
+    # H3 v4 uses strings. Convert int -> str -> grid_disk -> int
+    valid_seeds = [h3.str_to_int(x) for x in h3.grid_disk(h3.int_to_str(base_index), k)]
+    num_seeds = len(valid_seeds)
+    
+    print(f"  Generated {num_seeds} valid unique seeds from grid_disk.")
+
+    # Convert to numpy
+    seeds_np = np.array(valid_seeds, dtype=np.uint64)
+
+    # Tile them to reach n (50,000,000)
+    # We repeat the valid chunk over and over.
+    # This is valid for benchmarking because the math is the same.
+    repeats = (n // num_seeds) + 1
+    data_gpu = np.tile(seeds_np, repeats)[:n]
+    
+    # Shuffle if you want to avoid cache prediction cheating (optional but good)
+    np.random.shuffle(data_gpu)
+
+    print(f"  Expanded to {len(data_gpu):,} items.")
+
+    # Copy for CPU to ensure identical start state
+    data_cpu = data_gpu.copy()
+    
+    # Copy for CPU to ensure identical start state
+    data_cpu = data_gpu.copy()
+    
+    # --- GPU BENCHMARK ---
+    print("Running GPU benchmark...")
+    start_gpu = time.time()
+    
+    # Call the kernel
+    # batch_transform modifies data in-place (or returns a modified copy depending on binding)
+    # My python binding 'py_batch_transform' copies input, processes, and returns new array.
+    # This includes data transfer time!
+    # The Scala benchmark 'batchTransformDirect' used a DirectByteBuffer (zero-copy if configured right, or pinned).
+    # Here we are using standard numpy array, so there is copy overhead.
+    # However, for 50M items (400MB), transfer is ~0.03s (PCIe 4.0 16GB/s) to ~0.1s.
+    # Processing 50M items * 50 ops * 5 cycles = massive.
+    
+    gpu_results = h3_turbo.batch_transform(data_gpu, res_target)
+    
+    gpu_duration = time.time() - start_gpu
+    print(f"GPU transformation complete in {gpu_duration:.4f} s")
+    throughput = n / gpu_duration
+    print(f"GPU Throughput: {throughput:,.0f} points/sec")
+    
+    # --- CPU BENCHMARK ---
+    print("\nRunning CPU benchmark (Vectorized NumPy)...")
+    start_cpu = time.time()
+    
+    # 1. Cell To Parent
+    # h3.cell_to_parent is not vectorized in h3-py < 4.  h3-py 4 might map.
+    # But usually list comp is slow.
+    # For fair comparison against "Scala Loop", we want something fast.
+    # Scala loop is scalar but JITed.
+    # Numpy vectorization is the closest Python equivalent to "optimized code".
+    
+    # We'll use a simple approach: simple loop for parent (likely slow part), vectorized for scramble.
+    # Actually, h3.cell_to_parent might be the bottleneck.
+    # Let's try to mimic the bitwise logic if possible?
+    # No, that's complex (ico logic).
+    # We will use the library function and accept the overhead, OR
+    # use a smaller N if CPU is too slow?
+    # Python list comp for 50M will take ~10-20 seconds.
+    # That's fine.
+    
+    # Vectorized scramble is fast.
+    
+    print("  Step 1: Cell to Parent (using h3-py)...")
+    # We use numpy.vectorize or list comp
+    # list comp is usually faster than np.vectorize for scalar functions
+    parents_list = [h3.str_to_int(h3.cell_to_parent(h3.int_to_str(h), res_target)) for h in data_cpu]
+    parents_arr = np.array(parents_list, dtype=np.uint64)
+    
+    print("  Step 2: Scramble (using NumPy)...")
+    cpu_results = numpy_apply_weight(parents_arr)
+    
+    cpu_duration = time.time() - start_cpu
+    print(f"CPU transformation complete in {cpu_duration:.4f} s")
+    
+    # --- RESULTS ---
+    print("\n" + "=" * 80)
+    print("FINAL RESULTS")
+    print(f"CPU Time: {cpu_duration:.4f} s")
+    print(f"GPU Time: {gpu_duration:.4f} s")
+    if gpu_duration > 0:
+        print(f"RAW COMPUTE SPEEDUP: {cpu_duration / gpu_duration:.2f}x")
+    else:
+        print("GPU too fast to measure.")
+    print("=" * 80)
+    
+    # --- VERIFICATION ---
+    # Verify first and last
+    assert gpu_results[0] == cpu_results[0], f"Mismatch at 0: {gpu_results[0]} != {cpu_results[0]}"
+    assert gpu_results[-1] == cpu_results[-1], f"Mismatch at -1: {gpu_results[-1]} != {cpu_results[-1]}"
+    print("Verification successful.")
+
+if __name__ == "__main__":
+    if "H3_TURBO_LICENSE" in os.environ:
+        h3_turbo.set_license_key(os.environ["H3_TURBO_LICENSE"].strip())
+    test_raw_compute_benchmark()
+------- Test file  test_sf1000.py
+import pytest
+import h3_turbo
+import numpy as np
+import h3
+import time
+import os
+
+def numpy_apply_weight(h3_array):
+    """
+    Vectorized implementation of the 50-loop scramble using NumPy.
+    Matches the logic in RawPerformanceBenchmark.scala.
+    """
+    p = h3_array.astype(np.uint64)
+    # Constants
+    c1 = np.uint64(0xBF58476D1CE4E5B9)
+    c2 = np.uint64(0x94D049BB133111EB)
+    
+    for _ in range(50):
+        # p ^= (p >> 7)
+        p ^= (p >> np.uint64(7))
+        # p *= c1
+        p *= c1
+        # p ^= (p >> 13)
+        p ^= (p >> np.uint64(13))
+        # p *= c2
+        p *= c2
+        # p ^= (p >> 31)
+        p ^= (p >> np.uint64(31))
+        
+    return p
+
+def test_q11_spatial_join():
+    """
+    SpatialBench Query 11: Spatial Join (Point-in-Polygon).
+    Measures performance of joining a large set of points (pings) against a set of polygons (zones).
+    """
+    n_pings = int(os.environ.get("H3_NUM_PINGS", 50_000_000))
+    n_zones = 1_000_000
+    res_target = 7
+    base_index = 0x8928308280fffff
+    
+    print(f"\n" + "=" * 80)
+    print(f"SPATIALBENCH QUERY 11: SPATIAL JOIN")
+    print(f"Joining {n_pings:,} pings against {n_zones:,} zones")
+    print("=" * 80)
+    
+    # Data Generation
+    k = 200
+    # H3 v4 uses strings. Convert int -> str -> grid_disk -> int
+    pool = [h3.str_to_int(x) for x in h3.grid_disk(h3.int_to_str(base_index), k)]
+    pool_np = np.array(pool, dtype=np.uint64)
+    
+    zones = np.random.choice(pool_np, n_zones, replace=(len(pool_np) < n_zones))
+    pings = pool_np[np.random.randint(0, len(pool_np), size=n_pings)]
+    
+    # GPU Run
+    print("Running GPU Spatial Join...")
+    start_gpu = time.time()
+    gpu_results = h3_turbo.spatial_join(pings, zones, res_target)
+    gpu_duration = time.time() - start_gpu
+    print(f"GPU Time: {gpu_duration:.4f} s")
+    throughput = n_pings / gpu_duration
+    print(f"GPU Throughput: {throughput:,.0f} points/sec")
+
+    if os.environ.get("SKIP_CPU") == "1":
+        print("Skipping CPU verification to avoid OOM on large datasets.")
+        return
+
+    # CPU Run
+    print("Running CPU Spatial Join (Baseline)...")
+    zone_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(z), res_target)) for z in zones], dtype=np.uint64))
+    zone_set = set(zone_parents)
+
+    start_cpu = time.time()
+    cpu_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(p), res_target)) for p in pings], dtype=np.uint64))
+    cpu_results = np.array([1 if p in zone_set else 0 for p in cpu_parents], dtype=np.uint8)
+    cpu_duration = time.time() - start_cpu
+    print(f"CPU Time: {cpu_duration:.4f} s")
+
+    print(f"\nSPEEDUP: {cpu_duration / gpu_duration:.2f}x")
+    
+    assert np.array_equal(gpu_results, cpu_results)
+    print("Verification Passed.")
+
+if __name__ == "__main__":
+    if "H3_TURBO_LICENSE" in os.environ:
+        h3_turbo.set_license_key(os.environ["H3_TURBO_LICENSE"].strip())
+    test_q11_spatial_join()
+------- Test file  test_spatial_benchmark.py
+import pytest
+import h3_turbo
+import numpy as np
+import h3
+import time
+import os
+
+def numpy_apply_weight(h3_array):
+    """
+    Vectorized implementation of the 50-loop scramble using NumPy.
+    Matches the logic in RawPerformanceBenchmark.scala.
+    """
+    p = h3_array.astype(np.uint64)
+    # Constants
+    c1 = np.uint64(0xBF58476D1CE4E5B9)
+    c2 = np.uint64(0x94D049BB133111EB)
+    
+    for _ in range(50):
+        # p ^= (p >> 7)
+        p ^= (p >> np.uint64(7))
+        # p *= c1
+        p *= c1
+        # p ^= (p >> 13)
+        p ^= (p >> np.uint64(13))
+        # p *= c2
+        p *= c2
+        # p ^= (p >> 31)
+        p ^= (p >> np.uint64(31))
+        
+    return p
+
+def test_spatial_inclusion_performance():
+    """
+    Benchmarks checking if points are inside a set of polygons (Hot Zones).
+    """
+    n_pings = 10_000_000
+    n_zones = 100_000 # Number of hot zone cells
+    res_target = 7
+    base_index = 0x8928308280fffff
+    
+    print(f"\nGenerating {n_pings} pings and {n_zones} hot zones...")
+    
+    # FIX: Use grid_disk to generate VALID H3 indices
+    # k=200 gives ~120,000 valid indices.
+    k = 200
+    # H3 v4 uses strings. Convert int -> str -> grid_disk -> int
+    pool = [h3.str_to_int(x) for x in h3.grid_disk(h3.int_to_str(base_index), k)]
+    pool_np = np.array(pool, dtype=np.uint64)
+    
+    # Generate zones (subset of pool)
+    zones = np.random.choice(pool_np, n_zones, replace=(len(pool_np) < n_zones))
+
+    # Generate pings (random draw from pool)
+    pings = pool_np[np.random.randint(0, len(pool_np), size=n_pings)]
+    
+    # --- GPU BENCHMARK ---
+    print("\nPerforming spatial inclusion check on GPU...")
+    start_gpu = time.time()
+    
+    # Run the kernel
+    gpu_results = h3_turbo.spatial_join(pings, zones, res_target)
+    
+    gpu_duration = time.time() - start_gpu
+    print(f"GPU spatial join took: {gpu_duration:.4f} seconds.")
+    
+    # --- CPU BENCHMARK ---
+    print("\nPerforming spatial inclusion check on CPU...")
+    # For CPU, we use a Python set for O(1) lookup, which is idiomatic and fast in Python
+    # But to be fair, we should include the parent conversion time as the GPU does it.
+    
+    # Pre-calculate set to be fair (GPU table build is excluded from GPU timer)
+    zone_parents_unscrambled = np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(z), res_target)) for z in zones], dtype=np.uint64)
+    zone_parents_scrambled = numpy_apply_weight(zone_parents_unscrambled)
+    zone_set = set(zone_parents_scrambled)
+
+    start_cpu = time.time()
+    
+    # 1. Convert pings to parent
+    cpu_parents = np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(p), res_target)) for p in pings], dtype=np.uint64)
+    
+    # 2. Scramble (Fair comparison)
+    cpu_parents = numpy_apply_weight(cpu_parents)
+
+    # 3. Check against set
+    cpu_results = np.array([1 if p in zone_set else 0 for p in cpu_parents], dtype=np.uint8)
+    
+    cpu_duration = time.time() - start_cpu
+    print(f"CPU spatial join took: {cpu_duration:.4f} seconds.")
+    
+    # --- COMPARISON ---
+    print("\n" + "=" * 60)
+    print(f"SPATIAL JOIN: ({n_pings:,} Pings against {n_zones:,} Zones)")
+    print(f"CPU Time: {cpu_duration:.4f} s")
+    print(f"GPU Time: {gpu_duration:.4f} s")
+    if gpu_duration > 0:
+        print(f"SPEEDUP:  {cpu_duration / gpu_duration:.2f}x")
+    print("=" * 60)
+    
+    # Verify results
+    matches = np.sum(gpu_results)
+    print(f"Found {matches} matches.")
+    assert np.array_equal(gpu_results, cpu_results), "GPU and CPU results do not match!"
+
+if __name__ == "__main__":
+    if "H3_TURBO_LICENSE" in os.environ:
+        h3_turbo.set_license_key(os.environ["H3_TURBO_LICENSE"].strip())
+    test_spatial_inclusion_performance()------- Test file  test_spatialbench_q11.py
+import pytest
+import h3_turbo
+import numpy as np
+import h3
+import time
+import os
+
+def numpy_apply_weight(h3_array):
+    """
+    Vectorized implementation of the 50-loop scramble using NumPy.
+    """
+    p = h3_array.astype(np.uint64)
+    # Constants
+    c1 = np.uint64(0xBF58476D1CE4E5B9)
+    c2 = np.uint64(0x94D049BB133111EB)
+    
+    for _ in range(50):
+        # p ^= (p >> 7)
+        p ^= (p >> np.uint64(7))
+        # p *= c1
+        p *= c1
+        # p ^= (p >> 13)
+        p ^= (p >> np.uint64(13))
+        # p *= c2
+        p *= c2
+        # p ^= (p >> 31)
+        p ^= (p >> np.uint64(31))
+        
+    return p
+
+def test_q11_spatial_join():
+    """
+    SpatialBench Query 11: Spatial Join (Point-in-Polygon).
+    Measures performance of joining a large set of points (pings) against a set of polygons (zones).
+    """
+    n_pings = 110_000_000
+    n_zones = 100_000
+    res_target = 7
+    base_index = 0x8928308280fffff
+    
+    print(f"\n" + "=" * 80)
+    print(f"SPATIALBENCH QUERY 11: SPATIAL JOIN")
+    print(f"Joining {n_pings:,} pings against {n_zones:,} zones")
+    print("=" * 80)
+    
+    # Data Generation
+    k = 200
+    # H3 v4 uses strings. Convert int -> str -> grid_disk -> int
+    pool = [h3.str_to_int(x) for x in h3.grid_disk(h3.int_to_str(base_index), k)]
+    pool_np = np.array(pool, dtype=np.uint64)
+    
+    zones = np.random.choice(pool_np, n_zones, replace=(len(pool_np) < n_zones))
+    
+    print("Generating pings...")
+    pings = pool_np[np.random.randint(0, len(pool_np), size=n_pings)]
+    
+    print("Warming up JIT...")
+    h3_turbo.warmup()
+
+    # GPU Run
+    print("Running GPU Spatial Join...")
+    start_gpu = time.time()
+    # Encapsulated API: Pass zones directly
+    gpu_results = h3_turbo.spatial_join(pings, zones, res_target)
+    gpu_duration = time.time() - start_gpu
+    print(f"GPU Time: {gpu_duration:.4f} s")
+
+    # CPU Run
+    print("Running CPU Spatial Join (Baseline)...")
+    zone_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(z), res_target)) for z in zones], dtype=np.uint64))
+    zone_set = set(zone_parents)
+
+    start_cpu = time.time()
+    cpu_results = np.zeros(n_pings, dtype=np.uint8)
+    chunk_size = 1_000_000
+    
+    # Process in chunks to avoid OOM
+    for i in range(0, n_pings, chunk_size):
+        chunk = pings[i : i + chunk_size]
+        chunk_parents = numpy_apply_weight(np.array([h3.str_to_int(h3.cell_to_parent(h3.int_to_str(p), res_target)) for p in chunk], dtype=np.uint64))
+        cpu_results[i : i + chunk_size] = [1 if p in zone_set else 0 for p in chunk_parents]
+        
+    cpu_duration = time.time() - start_cpu
+    print(f"CPU Time: {cpu_duration:.4f} s")
+
+    print(f"\nSPEEDUP: {cpu_duration / gpu_duration:.2f}x")
+    
+    assert np.array_equal(gpu_results, cpu_results)
+    print("Verification Passed.")
+
+if __name__ == "__main__":
+    if "H3_TURBO_LICENSE" in os.environ:
+        h3_turbo.set_license_key(os.environ["H3_TURBO_LICENSE"].strip())
+    test_q11_spatial_join()
