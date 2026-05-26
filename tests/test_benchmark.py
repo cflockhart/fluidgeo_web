@@ -29,7 +29,7 @@ def warmup_gpu():
     dummy_data = np.array([0x8928308280fffff], dtype=np.uint64)
     res = 5
     # Call the kernel to trigger compilation
-    h3_turbo.batch_transform(dummy_data, res)
+    h3_turbo.batch_transform(dummy_data, res, scramble_iterations=50)
     print("🚀 JIT Ready!", flush=True)
 
 def test_heatmap_performance():
@@ -56,7 +56,7 @@ def test_heatmap_performance():
     start_gpu = time.time()
     
     # The h3_turbo.batch_transform function is expected to perform the cellToParent and scramble
-    gpu_results = h3_turbo.batch_transform(pings, res_target)
+    gpu_results = h3_turbo.batch_transform(pings, res_target, scramble_iterations=50)
     
     gpu_duration = time.time() - start_gpu
     print(f"GPU heatmap took: {gpu_duration:.4f} seconds.")
@@ -90,7 +90,14 @@ def test_heatmap_performance():
     # Verify that the results are the same
     print("\nVerifying results...")
     # Counter is too slow for 10M items. Use NumPy equality check.
-    assert np.array_equal(gpu_results, cpu_results), "GPU and CPU results do not match!"
+    is_equal = np.array_equal(gpu_results, cpu_results)
+    if not is_equal:
+        print(f"ERROR: Results do not match!")
+        print(f"GPU Sample: {gpu_results[:5]}")
+        print(f"CPU Sample: {cpu_results[:5]}")
+        if np.array_equal(gpu_results, pings) or np.all(gpu_results == 0):
+            print("CRITICAL WARNING: GPU array is unmodified or all zeros! The kernel failed to launch.")
+    assert is_equal, "GPU and CPU results do not match!"
     print("✅ GPU and CPU results match.")
 
     print("\n---")
@@ -103,6 +110,6 @@ if __name__ == "__main__":
     # Manually trigger warmup since pytest fixtures don't run in script mode
     print("\n☕ Stan is warming up the JIT...", flush=True)
     dummy_data = np.array([0x8928308280fffff], dtype=np.uint64)
-    h3_turbo.batch_transform(dummy_data, 5)
+    h3_turbo.batch_transform(dummy_data, 5, scramble_iterations=50)
     print("🚀 JIT Ready!", flush=True)
     test_heatmap_performance()

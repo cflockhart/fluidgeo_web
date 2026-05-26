@@ -58,7 +58,7 @@ def test_spatial_inclusion_performance():
     start_gpu = time.time()
     
     # Run the kernel
-    gpu_results = h3_turbo.spatial_join(pings, zones, res_target)
+    gpu_results = h3_turbo.spatial_join(pings, zones, res_target, scramble_iterations=50)
     
     gpu_duration = time.time() - start_gpu
     print(f"GPU spatial join took: {gpu_duration:.4f} seconds.")
@@ -99,7 +99,14 @@ def test_spatial_inclusion_performance():
     # Verify results
     matches = np.sum(gpu_results)
     print(f"Found {matches} matches.")
-    assert np.array_equal(gpu_results, cpu_results), "GPU and CPU results do not match!"
+    is_equal = np.array_equal(gpu_results, cpu_results)
+    if not is_equal:
+        print(f"ERROR: Results do not match!")
+        print(f"GPU Sample: {gpu_results[:5]}")
+        print(f"CPU Sample: {cpu_results[:5]}")
+        if np.all(gpu_results == 0):
+            print("CRITICAL WARNING: GPU array is all zeros! The kernel failed to launch.")
+    assert is_equal, "GPU and CPU results do not match!"
 
 if __name__ == "__main__":
     if "H3_TURBO_LICENSE" in os.environ:

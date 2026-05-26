@@ -56,7 +56,7 @@ def test_q11_spatial_join():
     # GPU Run
     print("Running GPU Spatial Join...")
     start_gpu = time.time()
-    gpu_results = h3_turbo.spatial_join(pings, zones, res_target)
+    gpu_results = h3_turbo.spatial_join(pings, zones, res_target, scramble_iterations=50)
     gpu_duration = time.time() - start_gpu
     print(f"GPU Time: {gpu_duration:.4f} s")
     throughput = n_pings / gpu_duration
@@ -79,7 +79,14 @@ def test_q11_spatial_join():
 
     print(f"\nSPEEDUP: {cpu_duration / gpu_duration:.2f}x")
     
-    assert np.array_equal(gpu_results, cpu_results)
+    is_equal = np.array_equal(gpu_results, cpu_results)
+    if not is_equal:
+        print(f"ERROR: Results do not match!")
+        print(f"GPU Sample: {gpu_results[:5]}")
+        print(f"CPU Sample: {cpu_results[:5]}")
+        if np.all(gpu_results == 0):
+            print("CRITICAL WARNING: GPU array is all zeros! The kernel failed to launch.")
+    assert is_equal, "GPU and CPU results mismatch!"
     print("Verification Passed.")
 
 if __name__ == "__main__":

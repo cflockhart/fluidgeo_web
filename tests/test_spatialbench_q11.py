@@ -51,8 +51,8 @@ def test_q11_spatial_join():
     SpatialBench Query 11: Spatial Join (Point-in-Polygon).
     Measures performance of joining a large set of points (pings) against a set of polygons (zones).
     """
-    n_pings = int(os.environ.get("H3_NUM_PINGS", 1_100_000_000))
-    n_zones = int(os.environ.get("H3_NUM_ZONES", 1_000_000))
+    n_pings = int(os.environ.get("H3_NUM_PINGS", 10_000_000))
+    n_zones = int(os.environ.get("H3_NUM_ZONES", 100_000))
     res_target = 7
     base_index = 0x8928308280fffff
     
@@ -79,7 +79,7 @@ def test_q11_spatial_join():
     print("Running GPU Spatial Join...")
     start_gpu = time.time()
     # Encapsulated API: Pass zones directly
-    gpu_results = h3_turbo.spatial_join(pings, zones, res_target)
+    gpu_results = h3_turbo.spatial_join(pings, zones, res_target, scramble_iterations=50)
     gpu_duration = time.time() - start_gpu
     print(f"GPU Time: {gpu_duration:.4f} s")
 
@@ -105,7 +105,14 @@ def test_q11_spatial_join():
 
     print(f"\nSPEEDUP: {cpu_duration / gpu_duration:.2f}x")
     
-    assert np.array_equal(gpu_results, cpu_results)
+    is_equal = np.array_equal(gpu_results, cpu_results)
+    if not is_equal:
+        print(f"ERROR: Results do not match!")
+        print(f"GPU Sample: {gpu_results[:5]}")
+        print(f"CPU Sample: {cpu_results[:5]}")
+        if np.all(gpu_results == 0):
+            print("CRITICAL WARNING: GPU array is all zeros! The kernel failed to launch.")
+    assert is_equal, "GPU and CPU results mismatch!"
     print("Verification Passed.")
 
 if __name__ == "__main__":

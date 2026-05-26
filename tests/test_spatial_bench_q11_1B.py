@@ -95,7 +95,7 @@ def test_q11_spatial_join():
         print(f"Dynamic GPU Batch Size: {gpu_batch_size:,} (Available RAM: {available_ram / 1024**3:.2f} GB)")
         
         end = min(i + gpu_batch_size, n_pings)
-        gpu_results[i:end] = h3_turbo.spatial_join(pings[i:end], zones, res_target)
+        gpu_results[i:end] = h3_turbo.spatial_join(pings[i:end], zones, res_target, scramble_iterations=50)
         i = end
 
     gpu_duration = time.time() - start_gpu

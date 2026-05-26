@@ -1,5 +1,4 @@
 import pytest
-import h3_turbo
 import numpy as np
 import h3
 import os
@@ -16,6 +15,7 @@ def to_str(h3_idx):
     return h3_idx
 
 def test_cell_to_parent_correctness():
+    import h3_turbo
     """
     Verifies that GPU cell_to_parent matches CPU h3.cell_to_parent.
     """
@@ -49,10 +49,17 @@ def test_cell_to_parent_correctness():
     
     # Comparison
     mismatches = np.sum(gpu_parents != cpu_parents)
+    if mismatches > 0:
+        print(f"ERROR: Found {mismatches} mismatches in cell_to_parent")
+        print(f"GPU Sample: {gpu_parents[:5]}")
+        print(f"CPU Sample: {cpu_parents[:5]}")
+        if np.array_equal(gpu_parents, cells_np) or np.all(gpu_parents == 0):
+            print("CRITICAL WARNING: GPU array is unmodified or all zeros! The kernel failed to launch.")
     assert mismatches == 0, f"Found {mismatches} mismatches in cell_to_parent"
     print("cell_to_parent passed.")
 
 def test_grid_disk_correctness():
+    import h3_turbo
     """
     Verifies that GPU grid_disk matches CPU h3.grid_disk.
     """
@@ -87,6 +94,7 @@ def test_grid_disk_correctness():
     print("grid_disk passed.")
 
 def test_cell_to_boundary_correctness():
+    import h3_turbo
     """
     Verifies cell_to_boundary against standard H3.
     """
@@ -126,6 +134,7 @@ def test_cell_to_boundary_correctness():
 if __name__ == "__main__":
     # Setup license if running as script
     if "H3_TURBO_LICENSE" in os.environ:
+        import h3_turbo
         h3_turbo.set_license_key(os.environ["H3_TURBO_LICENSE"].strip())
     
     test_cell_to_parent_correctness()

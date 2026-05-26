@@ -88,7 +88,7 @@ def test_raw_compute_benchmark():
     # However, for 50M items (400MB), transfer is ~0.03s (PCIe 4.0 16GB/s) to ~0.1s.
     # Processing 50M items * 50 ops * 5 cycles = massive.
     
-    gpu_results = h3_turbo.batch_transform(data_gpu, res_target)
+    gpu_results = h3_turbo.batch_transform(data_gpu, res_target, scramble_iterations=50)
     
     gpu_duration = time.time() - start_gpu
     print(f"GPU transformation complete in {gpu_duration:.4f} s")
@@ -142,6 +142,13 @@ def test_raw_compute_benchmark():
     
     # --- VERIFICATION ---
     # Verify first and last
+    is_equal = (gpu_results[0] == cpu_results[0]) and (gpu_results[-1] == cpu_results[-1])
+    if not is_equal:
+        print(f"ERROR: Results do not match!")
+        print(f"GPU Sample: {gpu_results[:5]}")
+        print(f"CPU Sample: {cpu_results[:5]}")
+        if np.array_equal(gpu_results, data_cpu) or np.all(gpu_results == 0):
+            print("CRITICAL WARNING: GPU array is unmodified or all zeros! The kernel failed to launch.")
     assert gpu_results[0] == cpu_results[0], f"Mismatch at 0: {gpu_results[0]} != {cpu_results[0]}"
     assert gpu_results[-1] == cpu_results[-1], f"Mismatch at -1: {gpu_results[-1]} != {cpu_results[-1]}"
     print("Verification successful.")

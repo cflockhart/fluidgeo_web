@@ -138,12 +138,12 @@ def run_demo():
     # 2. Warmup GPU
     print("Warming up GPU JIT...")
     dummy = np.array([pings_gpu[0]], dtype=np.uint64)
-    h3_turbo.batch_transform(dummy, RES_TARGET)
+    h3_turbo.batch_transform(dummy, RES_TARGET, scramble_iterations=50)
     
     # 3. GPU Benchmark
     print(f"Running GPU Batch Transform ({N_PINGS:,} items)...")
     start_gpu = time.time()
-    gpu_results = h3_turbo.batch_transform(pings_gpu, RES_TARGET)
+    gpu_results = h3_turbo.batch_transform(pings_gpu, RES_TARGET, scramble_iterations=50)
     gpu_time = time.time() - start_gpu
     print(f"GPU Time: {gpu_time:.4f} s")
     

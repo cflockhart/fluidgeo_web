@@ -52,6 +52,10 @@ if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v ldconfig >/dev/null 2>&1; then
             apt-get update -qq && apt-get install -y -qq libomp-dev || echo "WARNING: Install failed."
             # Update linker cache
             ldconfig
+        elif [ "$(id -u)" -eq 0 ] && command -v dnf >/dev/null 2>&1; then
+            echo "Attempting to install libomp-devel..."
+            dnf install -y -q libomp-devel || echo "WARNING: Install failed."
+            ldconfig
         fi
 
         # If still missing (or install failed), warn user

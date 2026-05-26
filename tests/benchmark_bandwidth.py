@@ -1,10 +1,10 @@
-import h3_turbo
 import numpy as np
 import h3
 import time
 import os
 
 def benchmark_bandwidth():
+    import h3_turbo
     print("=" * 80)
     print("H3-TURBO MEMORY BANDWIDTH BENCHMARK: cellToBoundary")
     print("Comparing Optimized (7 vertices) vs Original (10 vertices)")
