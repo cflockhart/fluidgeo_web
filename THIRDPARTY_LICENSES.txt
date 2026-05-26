@@ -1,10 +1,10 @@
 ========================================================================
-H3-Turbo (FluidGeo LLC) - Third-Party Open Source Notices
+H3-Turbo (FluidGeo) - Third-Party Open Source Notices
 ========================================================================
 
-This software, H3-Turbo, is a proprietary product of FluidGeo LLC. 
+This software, H3-Turbo, is a proprietary product of FluidGeo. 
 H3-Turbo incorporates and leverages several open-source libraries. 
-FluidGeo LLC acknowledges the following authors and contributors 
+FluidGeo acknowledges the following authors and contributors 
 and provides the required license notices below.
 
 ------------------------------------------------------------------------
@@ -69,6 +69,21 @@ modification, are permitted provided that the following conditions are met:
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
+
+ACADEMIC CITATION REQUIREMENT:
+AdaptiveCpp is a research project. If you use h3-turbo for academic research 
+and publish performance results utilizing the SYCL GPU backend, the AdaptiveCpp 
+authors request citation of their core compiler research:
+
+Aksel Alpay and Vincent Heuveline. 2023. "One Pass to Bind Them: The First 
+Single-Pass SYCL Compiler with Unified Code Representation Across Backends." 
+In Proceedings of the 2023 International Workshop on OpenCL (IWOCL '23). 
+DOI: https://doi.org/10.1145/3585341.3585351
+
+Aksel Alpay and Vincent Heuveline. 2025. "Adaptivity in AdaptiveCpp: Optimizing 
+Performance by Leveraging Runtime Information During JIT-Compilation." 
+In Proceedings of the 13th International Workshop on OpenCL and SYCL (IWOCL '25). 
+DOI: https://doi.org/10.1145/3731125.3731127
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
