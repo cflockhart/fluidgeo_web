@@ -1,12 +1,28 @@
-# H3 SYCL Bridge
+# FluidGeo H3-Turbo
 
-## ⚖️ Licensing
+[![License](https://img.shields.io/badge/license-Dual--License-blue.svg)](#licensing)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://pypi.org/project/h3-turbo/)
+[![Platform](https://img.shields.io/badge/platform-linux--64-lightgrey)](https://pypi.org/project/h3-turbo/)
+
+**FluidGeo H3-Turbo** is a hardware-accelerated H3 spatial indexing library powered by SYCL (AdaptiveCpp). It provides high-performance, drop-in GPU/CPU-parallelized replacements for standard H3 operations, designed to operate seamlessly on NumPy arrays and PySpark DataFrames.
+
+### Quick Links & Resources
+* **[PyPI Project Page](https://pypi.org/project/h3-turbo/)**: View releases, installation requirements, and package details.
+* **[h3_turbo_benchmarks.ipynb](file:///home/craig/dev/h3_turbo_v0.1/h3_turbo_benchmarks.ipynb)**: An interactive Jupyter notebook comparing GPU-accelerated operations against CPU-based `h3-py` and `numpy` equivalents across various data sizes (raw compute, spatial joins, batch processing, and GPU index caching reuse).
+* **[spark_udf_tests.ipynb](file:///home/craig/dev/h3_turbo_v0.1/spark_udf_tests.ipynb)**: Interactive Jupyter notebook demonstrating PySpark integration, UDF usage, and persistent spatial join optimizations.
+
+---
+
+## Licensing
+
 FluidGeo H3-Turbo is offered under a dual-license model:
 * **Academic & Non-Commercial:** Free for research and educational purposes.
-* **Commercial & Enterprise:** A yearly subscription is required for production environments. 
-  * *Features: 1,186x speedup on Blackwell, zero-copy pinned memory, and priority SYCL kernel support.*
+* **Commercial & Enterprise:** A yearly subscription is required for production environments.
+  * *Features: Up to ~1000x speedup on Blackwell/Hopper GPUs, zero-copy pinned memory, multi-GPU scalability, and priority SYCL kernel support.*
 
-For enterprise trial keys and pricing, contact: **info@fluidgeollc.com**
+For enterprise trial keys, support, and pricing, contact: **info@fluidgeollc.com**
+
+---
 
 ## Installation
 
@@ -16,179 +32,170 @@ H3-Turbo is available on PyPI and comes with pre-compiled "fat" wheels for Linux
 pip install h3-turbo
 ```
 
-## Python API
+---
 
-H3 Turbo provides drop-in replacements for common H3 functions, optimized for NumPy arrays and GPU acceleration.
+## Hardware Initialization & Verification
+
+Before executing large workloads, verify that your SYCL acceleration backend is correctly recognized and warm up the JIT compiler.
 
 ```python
 import h3_turbo
+
+# 1. Check version (consistent with pyproject.toml)
+print(f"H3 Turbo Version: {getattr(h3_turbo, '__version__', 'unknown')}")
+
+# 2. Query active SYCL device
+device = h3_turbo.device_name() # or h3_turbo.get_device_name()
+print(f"Active Compute Device: {device}")
+
+# 3. Warm up JIT compiler
+h3_turbo.warmup()
+print("JIT compilation warmed up and ready!")
+```
+
+---
+
+## Python API Reference
+
+H3-Turbo functions are optimized for high-throughput batch operations on NumPy arrays.
+
+### 1. Lat/Lon to Cell Conversion
+Convert coordinates (`lats`, `lons`) to H3 cell indexes at a specific resolution.
+```python
 import numpy as np
 
-# 1. Lat/Lon to Cell
 lats = np.random.uniform(37.7, 37.8, 1_000_000)
 lngs = np.random.uniform(-122.5, -122.4, 1_000_000)
 resolution = 9
 
-# Returns uint64 array of H3 indices
+# Returns a uint64 array of H3 indices
 cells = h3_turbo.latlng_to_cell(lats, lngs, resolution)
+```
 
-# 2. Cell to Parent
+### 2. Cell to Parent
+Find the parent cells at a coarser resolution.
+```python
 parent_res = 5
 parents = h3_turbo.cell_to_parent(cells, parent_res)
+```
 
-# 3. Grid Disk (k-ring)
-k = 2
-# Returns (N, max_k_size) array, padded with 0s
-disks = h3_turbo.grid_disk(cells, k)
+### 3. Grid Disk (k-ring)
+Compute the grid disk of radius `k` around cell(s). Supports both scalar origins and batch arrays.
+```python
+# Scalar origin: returns 1D array of cells
+single_disk = h3_turbo.grid_disk(0x8928308280fffff, k=2)
 
-# 4. Cell to Boundary
-# Returns (N, 7, 2) array of [lat, lng] coordinates
+# Batch array: returns a 2D (N, max_k_size) array padded with 0s
+disks = h3_turbo.grid_disk(cells, k=2)
+```
+
+### 4. Cell to Boundary
+Get the lat/lng boundary coordinates of cells.
+```python
+# Returns an (N, 7, 2) array of [lat, lng] boundary vertices
 boundaries = h3_turbo.cell_to_boundary(cells)
 
-# 5. Spatial Join (Point-in-Polygon)
-# Efficiently check if points are within a set of zones
-zones = np.array([0x8928308280fffff], dtype=np.uint64)
-mask = h3_turbo.spatial_join(cells, zones, resolution)
-
-# 6. Batch Transform
-# In-place GPU transform of an array of H3 indices to a target resolution
-cells_to_transform = cells.copy()
-h3_turbo.batch_transform(cells_to_transform, 8)
+# Unoptimized 10-vertex boundary layout (for specific legacy compatibility)
+boundaries_10 = h3_turbo.cell_to_boundary_10(cells)
 ```
+
+### 5. Spatial Join (Point-in-Polygon / Inclusion Check)
+Check if points (pings) are within a set of zones.
+* **Production Overload:** Strictly 3 parameters, running at maximum GPU performance (no scramble).
+* **Benchmarking Overload:** Includes the optional `scramble_iterations` parameter (e.g., set to `50` for matching baseline/benchmark scrambles).
+
+```python
+zones = np.array([0x8928308280fffff], dtype=np.uint64)
+
+# 1. Production usage (no scramble_iterations needed)
+mask = h3_turbo.spatial_join(cells, zones, resolution=9)
+
+# 2. Benchmarking / verification usage
+mask_bench = h3_turbo.spatial_join(cells, zones, resolution=9, scramble_iterations=50)
+```
+
+### 6. Persistent Joiner (Advanced Spatial Join)
+For high-frequency point-in-polygon queries, avoid rebuilding the spatial index on every call by reusing a persistent instance. Use this when running many spatial join queries on the same set of zones.
+```python
+# 1. Production usage (no scramble_iterations needed)
+joiner = h3_turbo.PersistentJoiner(zones, resolution=9)
+
+# 2. Benchmarking / verification usage
+joiner_bench = h3_turbo.PersistentJoiner(zones, resolution=9, scramble_iterations=50)
+
+# Run multiple joins efficiently
+results = np.zeros(len(cells), dtype=np.uint8)
+joiner.join(cells, results)
+```
+
+### 7. Batch Transform
+In-place GPU resolution transformation of an array of H3 indices.
+```python
+cells_to_transform = cells.copy()
+
+# 1. Production usage (no scramble_iterations needed)
+h3_turbo.batch_transform(cells_to_transform, res=8)
+
+# 2. Benchmarking / verification usage
+h3_turbo.batch_transform(cells_to_transform, res=8, scramble_iterations=50)
+```
+
+### 8. System Control & Cleanup
+```python
+# Set your enterprise license key to unlock full performance
+h3_turbo.set_license_key("YOUR_LICENSE_KEY")
+
+# Manually release internal GPU queue and SYCL resources
+h3_turbo.cleanup()
+```
+
+---
 
 ## Spark / Databricks Integration
 
-H3 Turbo includes optimized Pandas UDFs for PySpark.
+H3-Turbo provides high-throughput Pandas UDFs for PySpark, enabling distributed GPU execution.
 
 ```python
+import os
+import sys
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
+
+# Ensure workers run in the environment containing pyarrow and h3_turbo
+os.environ["PYSPARK_PYTHON"] = sys.executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+
 from spark_h3_turbo import (
     latlng_to_cell_udf,
     cell_to_parent_udf,
     grid_disk_udf,
     spatial_join_udf,
+    persistent_spatial_join_udf,
     batch_transform_udf
 )
 
+spark = SparkSession.builder.appName("H3-Turbo-Spark").getOrCreate()
+
 # 1. Lat/Lon to Cell
-df = df.withColumn("h3", latlng_to_cell_udf(9)(col("lat"), col("lon")))
+df = df.withColumn("h3", latlng_to_cell_udf(resolution=9)(col("lat"), col("lon")))
 
 # 2. Cell to Parent
-df = df.withColumn("parent", cell_to_parent_udf(5)(col("h3")))
+df = df.withColumn("parent", cell_to_parent_udf(parent_res=5)(col("h3")))
 
 # 3. Grid Disk
-df = df.withColumn("kring", grid_disk_udf(2)(col("h3")))
+df = df.withColumn("kring", grid_disk_udf(k=2)(col("h3")))
 
-# 4. Spatial Join (Broadcast)
-zones_list = [0x8928308280fffff] # List of H3 integers
-df = df.withColumn("in_zone", spatial_join_udf(zones_list, 9)(col("h3")))
+# 4. Spatial Join (Broadcast / Inclusion Check)
+# Use spatial_join_udf for simple one-off queries
+zones_list = [0x8928308280fffff]
+df = df.withColumn("in_zone", spatial_join_udf(zones_list, res=9)(col("h3")))
+
+# Use persistent_spatial_join_udf for large datasets. It caches the GPU spatial 
+# index once per PySpark worker process and reuses it across all partition batches, 
+# preventing index rebuild overhead.
+df = df.withColumn("in_zone_persistent", persistent_spatial_join_udf(zones_list, res=9)(col("h3")))
 
 # 5. Batch Transform
-df = df.withColumn("transformed_h3", batch_transform_udf(8)(col("h3")))
+df = df.withColumn("transformed_h3", batch_transform_udf(res=8)(col("h3")))
 ```
 
-## Building from Source
-
-If you wish to build `h3-turbo` from source, either to contribute, customize, or target specific hardware configurations not covered by the pre-built wheels, follow these instructions.
-
-### Prerequisites
-
-Before you begin, ensure you have the following installed on your system:
-
-*   **Git**: For cloning the repository.
-*   **Python 3.10+**: With `pip` and `venv`.
-*   **pipx**: For isolated installation of `cibuildwheel`.
-    ```bash
-    pip install pipx
-    pipx ensurepath
-    ```
-*   **Docker**: With the `buildx` plugin enabled, for building multi-architecture Docker images.
-*   **AdaptiveCpp (acpp)**: The SYCL compiler and runtime. Ensure `acpp` is in your system's `PATH`.
-*   **CUDA Toolkit**: For NVIDIA GPUs. Ensure `nvcc` is in your `PATH`.
-*   **ROCm**: For AMD GPUs. Ensure `hipcc` is in your `PATH`.
-*   **H3 Library**: The H3 C library will be automatically built from source by `cibuildwheel` or `build_app.sh`.
-
-### Building the Python Wheel
-
-The `h3-turbo` Python wheel is built using `cibuildwheel`, which orchestrates builds for various Python versions and platforms. The `GPU_ARCH` environment variable is crucial for targeting specific GPU architectures.
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-repo/h3_turbo.git # Replace with actual repo URL
-    cd h3_turbo
-    ```
-
-2.  **Clean previous build artifacts (recommended):**
-    ```bash
-    rm -rf build dist wheelhouse || true
-    ```
-
-3.  **Determine your host architecture:**
-    ```bash
-    set HOST_ARCH (uname -m)
-    if test "$HOST_ARCH" = "aarch64" -o "$HOST_ARCH" = "arm64"
-        set WHEEL_ARCH "aarch64"
-    else
-        set WHEEL_ARCH "x86_64"
-    end
-    echo "Detected host architecture for wheel: $WHEEL_ARCH"
-    ```
-
-4.  **Build the wheel:**
-    You can specify the target `GPU_ARCH` for the wheel.
-    *   **For a specific NVIDIA GPU architecture (e.g., Hopper `sm_90`):**
-        ```bash
-        set -x CIBW_ARCHS "$WHEEL_ARCH"; set -x CIBW_ENVIRONMENT "GPU_ARCH=sm_90"; pipx run cibuildwheel --platform linux
-        ```
-        This will produce a wheel named `h3_turbo_sm90-0.1.13+sm90-cp312-cp312-manylinux_*.whl`.
-    *   **For a "fat" wheel (multiple NVIDIA architectures: `sm_86`, `sm_89`, `sm_90`):**
-        ```bash
-        set -x CIBW_ARCHS "$WHEEL_ARCH"; set -x CIBW_ENVIRONMENT "GPU_ARCH=fat"; pipx run cibuildwheel --platform linux
-        ```
-        This will produce a wheel named `h3_turbo-0.1.13-cp312-cp312-manylinux_*.whl`.
-        *Note: `sm_100` (Blackwell) is automatically handled by targeting `sm_90` (Hopper) with PTX generation for forward compatibility.*
-    *   **For AMD GPUs (e.g., `gfx90a`):**
-        ```bash
-        set -x CIBW_ARCHS "$WHEEL_ARCH"; set -x CIBW_ENVIRONMENT "GPU_ARCH=gfx90a"; pipx run cibuildwheel --platform linux
-        ```
-        This will produce a wheel named `h3_turbo_gfx90a-0.1.13+gfx90a-cp312-cp312-manylinux_*.whl`.
-
-    The built wheel(s) will be located in the `wheelhouse/` directory.
-
-### Building the Docker Image
-
-The `build_docker.sh` script automates the process of building the Python wheel (if not already built) and then constructing the Docker image.
-
-1.  **Ensure the wheel is built:**
-    Run one of the `cibuildwheel` commands from the "Building the Python Wheel" section above. The `build_docker.sh` script will automatically find and copy the latest wheel from `wheelhouse/` to `dist/`.
-
-2.  **Build the Docker image:**
-    You can specify the target `GPU_ARCH` for the Docker image. This `GPU_ARCH` will be passed as a build argument to the Dockerfile and will influence the base image and CUDA/ROCm configurations.
-
-    *   **Default (multi-arch NVIDIA: `sm_86,sm_89,sm_90,sm_100`):**
-        ```bash
-        ./build_docker.sh
-        ```
-        This will tag the image as `docker.io/cflockhart/h3_turbo_sm-86-sm-89-sm-90-sm-100:latest`.
-    *   **Specific NVIDIA architecture (e.g., `sm_90`):**
-        ```bash
-        ./build_docker.sh sm_90
-        ```
-        This will tag the image as `docker.io/cflockhart/h3_turbo_sm-90:latest`.
-    *   **AMD architecture (e.g., `gfx90a`):**
-        ```bash
-        ./build_docker.sh gfx90a
-        ```
-        This will tag the image as `docker.io/cflockhart/h3_turbo_gfx90a:latest`.
-    *   **With Spark support:**
-        ```bash
-        ./build_docker.sh sm_90 --spark
-        ```
-        This will tag the image as `docker.io/cflockhart/h3_turbo_sm-90_spark:latest`.
-    *   **Without pushing to Docker Hub:**
-        ```bash
-        ./build_docker.sh sm_90 --no-push
-        ```
-
-The script will handle building the wheel (if necessary), copying it to `dist/`, and then building the Docker image.
-```
