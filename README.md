@@ -29,7 +29,7 @@ For enterprise trial keys, support, and pricing, contact: **info@fluidgeollc.com
 H3-Turbo is available on PyPI and comes with pre-compiled "fat" wheels for Linux (CUDA 12.x) supporting NVIDIA Ampere, Ada Lovelace, Hopper, and Blackwell architectures.
 
 ```bash
-pip install h3-turbo
+pip install <downloaded wheel path>
 ```
 
 ---
